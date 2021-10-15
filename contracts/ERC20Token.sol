@@ -1,100 +1,93 @@
-pragma solidity >=0.7.0 <0.9.0;
 
-contract Transaction {
-    event Transfer(address indexed from, address indexed to, uint256 _value);
+// SPDX-License-Identifier: MIT
 
-    event Approval(
-        address indexed _owner,
-        address indexed _spender,
-        uint256 _value
-    );
-    
+pragma solidity ^0.8.0;
+
+import "./ERC20Template.sol";
+import "./CustomOwner.sol";
+
+contract ERC20Token is ERC20Template, CustomOwner{
+    //Total number of tokens in existence.
+    uint256 private _totalSupply;
+    string private _name;
+    string private _symbol;
+
     mapping(address => uint256) private balances;
     
-    address private customer ;
-
-    mapping(address => mapping(address => uint256)) private _allowed;
+    mapping(address => mapping(address => uint256)) private allowances;
     
-    uint256 private _totalTime ;
-    uint256 private _totalYear ; 
+    constructor (uint256 _initialSupply) public {
+        _name = "ERC20Token";
+        _symbol = "ERC20Token";
+        balances[msg.sender] = _initialSupply;
+        _totalSupply=_initialSupply;
+    }
 
-    uint constant YEAR_IN_SECONDS = 31536000;
-    uint constant LEAP_YEAR_IN_SECONDS = 31622400;
-
-    constructor (address _customer) public{
-        customer = _customer ; 
-    }
-    function setYear (uint _years) public  returns (bool){
-           
-        totalYear = years ; 
-        
-        if(isLeapYear(_years)){
-            
-        totalTime = block.timestamp + ( years * LEAP_YEAR_IN_SECONDS );
-            
-        }
-        
-        else {
-            totalTime = block.timestamp + (years * YEAR_IN_SECONDS);
-        }
-        return true ; 
-    }
-    function setDeposit(uint _deposit) public  returns (bool) {
-        require(customer != address(0),'address of customer must  be not null');
-        require(balances[customer]>= _deposit) ;
-         balances[customer] -= _deposit ;
-         balances[msg.sender] += _deposit ;
-        allowed[customer][msg.sender] += deposit ; 
-        return true ;
-    }
-    
-    function caculateInterest() private returns (uint256){
-        uint interest = 0 ;
-        uint rate = uint(11)/uint(10);
-        interest = balances[msg.sender]  ( (rate) * _totalYear ) - balances[msg.sender] ; 
-        return interest ;
-    }
-    
-     function balanceOf(address account) public  view returns (uint256) {
-         
+    function balanceOf(address account) public view  override returns (uint256) {
         return balances[account];
     }
-
-
-    function withDraw()  public  returns (uint256){
-    require(_totalTime >= block.timestamp ,'total year save money must be less than currensYeas') ;
-    uint256 interest = 0 ;
-    interest = caculateInterest();
-    uint256 totalMoney = 0 ;
-    balances[msg.sender] -= totalMoney ;
-    _allowed[customer][msg.sender] -=totalMoney ; 
-    balances[customer] += totalMoney;
-    return balances[msg.sender];
+    
+    function name() public view override returns (string memory) {
+        return _name;
     }
     
-
-     function isLeapYear(uint256 year) private pure returns (bool) {
-                if (year % 4 != 0) {
-                        return false;
-                }
-                if (year % 100 != 0) {
-                        return true;
-                }
-                if (year % 400 != 0) {
-                        return false;
-                }
-                return true;
-         
-     }
-
-   function approve(address spender, uint256 value) public returns (bool){
-        require(spender != address(0));
-        _allowed[msg.sender][spender] = value;
-        emit Approval(msg.sender, spender, value);
+    function symbol() public view override returns (string memory) {
+        return _symbol;
+    }
+    
+    function totalSupply() public view override returns (uint256) {
+        return _totalSupply;
+    }
+    
+    function transfer(address recipient, uint256 amount) public onlyOwner override returns (bool) {
+        _transfer(msg.sender, recipient, amount);
         return true;
     }
-    function allowance(address owner, address spender) public view returns (uint256 remaining){
-        return _allowed[_owner][_spender];
+    
+    function _transfer(address sender, address recipient, uint256 amount) internal {
+        require (sender!=address(0), "sender can not be zero address");
+        require (recipient != address(0), "recipient can not be zero address");
+        require (balances[sender]>=amount, "transfer amount can exceeds the balance");
+        balances[sender] = balances[sender]- amount;
+        balances[recipient] = balances[recipient]+amount;
+        emit Transfer(sender, recipient, amount);
     }
     
+    function allowance(address owner, address spender) public view override returns (uint256) {
+        return allowances[owner][spender];
+    }
+    
+    function transferFrom(address sender, address recipient, uint256 amount) public override returns (bool) {
+        _transfer(sender,recipient,amount);
+        uint256 allowance = allowances[sender][msg.sender];
+        require(amount <= allowance,"transfer amount can not exceeds the allowance");
+        _approve(sender,msg.sender,allowance - amount);
+        return true;
+        
+    }
+    
+    function approve(address spender, uint256 amount) public override returns (bool) {
+        _approve(msg.sender, spender, amount);
+        return true;
+    }
+    
+    function _approve(address owner, address spender, uint256 amount) internal {
+        require(owner != address(0), " Can not approve from the zero address");
+        require(spender != address(0), "Can not approve to the zero address");
+        allowances[owner][spender] = amount;
+        emit Approval(owner, spender, amount);
+    }
+    
+     function increaseAllowance(address spender, uint256 addedValue) public returns (bool) {
+        _approve(msg.sender, spender, allowances[msg.sender][spender] + addedValue);
+        return true;
+    }
+    
+    function decreaseAllowance(address spender, uint256 subtractedValue) public returns (bool) {
+        uint256 currentAllowance = allowances[msg.sender][spender];
+        require(currentAllowance >= subtractedValue, "decreased allowance below zero");
+        _approve(msg.sender, spender, currentAllowance - subtractedValue);
+        return true;
+    }
+
 }
